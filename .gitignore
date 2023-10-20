@@ -24,6 +24,8 @@ next-env.d.ts
 .DS_Store
 *.pem
 /.idea/
+.sanity/
+.partykit/
 
 # debug
 npm-debug.log*
