@@ -1,4 +1,4 @@
-# Generated COnversations with GPT-4 Chains using Inngest
+# Generated Conversations with GPT-4 Chains using Inngest 🤖
 
 This is an application that is primarily meant to be ran locally (for now) 
 as a way to explore and experiment with gpt-4 prompt chaining as a "tool for 
