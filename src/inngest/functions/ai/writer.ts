@@ -1,23 +1,14 @@
 import {inngest} from "@/inngest/inngest.server";
-import {AI_WRITING_COMPLETED_EVENT, AI_WRITING_REQUESTED_EVENT} from "@/inngest/events";
-import {env} from "@/env.mjs";
-import {Configuration, OpenAIApi} from "openai-edge";
-import {ProgressWriter} from "@/types";
-import {OpenAIStreamingDataPartykitChunkPublisher, STREAM_COMPLETE} from "@/lib/streaming-chunk-publisher";
-
-const config = new Configuration({apiKey: env.OPENAI_API_KEY})
-const openai = new OpenAIApi(config)
-
-
-
+import {AI_WRITING_REQUESTED_EVENT} from "@/inngest/events";
+import {type ChatCompletionRequestMessage} from "openai-edge";
+import {promptStep} from "@/lib/prompt-step";
 
 export const writeAnEmail = inngest.createFunction(
   {id: `gpt-4-writer`, name: 'GPT-4 Writer'},
   {event: AI_WRITING_REQUESTED_EVENT},
   async ({event, step}) => {
 
-
-    const systemPrompt = event.data.input.instructions && `You craft thoughtful phrases for customer emails`
+    const systemPrompt: string = event.data.input.instructions || `You craft thoughtful phrases for customer emails`
 
     const primarySystemWriterPrompt = `
     # Instructions
@@ -26,19 +17,12 @@ export const writeAnEmail = inngest.createFunction(
     
     ${event.data.input.input}
     
+    * be casual and conversational
     * generate text for the template items. 
     * Do not include additional template items or 
     * do not include brackets in the response
     * if you are missing information, include generic information
     * if you don't have a name, use phrasing that doesn't require a name but isn't rude and impersonal
-    
-    Data:
-    {
-     customer: {
-        name: "Mike Oxlong",
-        email: "mike@example.com"
-     }
-    }
     
     Template:
     {{Greeting}},
@@ -47,61 +31,76 @@ export const writeAnEmail = inngest.createFunction(
     
     {{personalized}}
     
+    {{holiday cheer}}
+    
+    {{termination notice}}
+    
     Cheers,
     Joel
    
     `
 
-    const aiResponse = await step.run(
+    const aiResponse: ChatCompletionRequestMessage | null = await step.run(
       'send to writer for first draft',
       async () => {
-        const writer: ProgressWriter = new OpenAIStreamingDataPartykitChunkPublisher(event.data.requestId);
-        let result
-        const response = await openai.createChatCompletion({
-          messages: [
+        return promptStep({requestId: event.data.requestId, promptMessages: [
             {role: 'system', content: systemPrompt},
             {role: 'user', content: primarySystemWriterPrompt},
-          ],
-          stream: true,
-          model: 'gpt-4'
-        })
-
-        if (response.status >= 400) {
-          result = await response.json();
-          throw new Error(
-            result?.error?.message ?  result.error.message as string : "There was an error with openAI",
-            {
-              cause: result,
-            }
-          );
-        }
-
-        try {
-          result = await writer.writeResponseInChunks(response)
-        } catch (e) {
-          console.warn((e as Error).message, e);
-        } finally {
-          await writer.publishMessage(STREAM_COMPLETE);
-        }
-
-        return result
+          ]})
       },
     )
 
+    const editorPrompt = `You are the editor. You are reviewing the first draft of the email. Provide 
+    structured feedback to the writer. Be specific. Be concise. Most of all be useful.
+    
+    - you have all the data, don't assume more data exists outside of the conversation
+    - feedback should be in bullet points
+    - keep the initial instructions in mind
+    - don't suggest generic greetings
+    
+     ${event.data.input.editor}`
 
-    // await step.run('send announcement via socket', async () => {
-    //   const partyUrl = `${env.NEXT_PUBLIC_PARTY_KIT_URL}/party/${env.NEXT_PUBLIC_PARTYKIT_ROOM_NAME}`
-    //   await fetch(partyUrl, {
-    //     method: "POST",
-    //     body: JSON.stringify({
-    //       body: aiResponse?.choices[0]?.message.content,
-    //     }),
-    //   }).catch((e) => {
-    //     console.error(e);
-    //   })
-    // })
+    const editorResponse: ChatCompletionRequestMessage = await step.run(
+      'send draft to editor',
+      async () => {
+        return promptStep({requestId: event.data.requestId, promptMessages: [
+            {role: 'system', content: systemPrompt},
+            {role: 'user', content: primarySystemWriterPrompt},
+            aiResponse,
+            {role: 'user', content: editorPrompt},
+          ]})
 
+      },
+    )
 
-    return 'done'
+    const authorRevisionsPrompt = `
+    stop. calm down. take the editors feedback seriously and create a final draft.
+    
+    ${event.data.input.revisions}
+    `
+
+    const authorRevisionsResponse: ChatCompletionRequestMessage = await step.run(
+      'send editor feedback to writer',
+      async () => {
+        return promptStep({requestId: event.data.requestId, promptMessages: [
+            {role: 'system', content: systemPrompt},
+            {role: 'user', content: primarySystemWriterPrompt},
+            aiResponse,
+            {role: 'user', content: editorPrompt},
+            editorResponse,
+            {role: 'user', content: authorRevisionsPrompt},
+          ]})
+      },
+    )
+
+    return {content: authorRevisionsResponse.content, prompts: [
+        {role: 'system', content: systemPrompt},
+        {role: 'user', content: primarySystemWriterPrompt},
+        aiResponse,
+        {role: 'user', content: editorPrompt},
+        editorResponse,
+        {role: 'user', content: authorRevisionsPrompt},
+        authorRevisionsResponse
+    ]}
   },
 )

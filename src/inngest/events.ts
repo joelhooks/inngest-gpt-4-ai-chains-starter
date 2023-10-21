@@ -16,7 +16,7 @@ export type AIWritingRequested = {
     name: typeof AI_WRITING_REQUESTED_EVENT
     data: {
         requestId: string
-        input: Record<string, FormDataEntryValue>
+        input: Record<any, any>
     }
 }
 

@@ -16,8 +16,6 @@ const nanoid = customAlphabet(
 
 
 export function TabEdit() {
-
-
   return (
     <TabsContent value="edit" className="mt-0 border-0 p-0">
       <form action={async (event) => {
@@ -33,15 +31,6 @@ export function TabEdit() {
         <div className="flex flex-col space-y-4">
           <div className="grid h-full gap-6 lg:grid-cols-2">
             <div className="flex flex-col space-y-4">
-              <div className="flex flex-1 flex-col space-y-2">
-                <Label htmlFor="input">Main Prompt</Label>
-                <Textarea
-                  id="input"
-                  name='input'
-                  placeholder="We is going to the market."
-                  className="flex-1 lg:min-h-[580px]"
-                />
-              </div>
               <div className="flex flex-col space-y-2">
                 <Label htmlFor="instructions">System Instructions</Label>
                 <Textarea
@@ -50,6 +39,13 @@ export function TabEdit() {
                   placeholder="Fix the grammar."
                 />
               </div>
+              <Label htmlFor="input">Main Prompt</Label>
+              <Textarea
+                id="input"
+                name='input'
+                placeholder="We is going to the market."
+              />
+
               <div className="flex flex-col space-y-2">
                 <Label htmlFor="editor">Editor prompt</Label>
                 <Textarea
@@ -58,6 +54,12 @@ export function TabEdit() {
                   placeholder="Prompt the editor"
                 />
               </div>
+              <Label htmlFor="revision">Author Revision Instructions</Label>
+              <Textarea
+                id="revision"
+                name='revision'
+                placeholder="We is going to the market."
+              />
             </div>
             <ChatResponse />
           </div>
