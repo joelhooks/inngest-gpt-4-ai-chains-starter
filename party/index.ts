@@ -1,5 +1,4 @@
 import type * as Party from "partykit/server";
-import {PartyRequest} from "partykit/server";
 
 export default class Server implements Party.Server {
   constructor(readonly party: Party.Party) {}
@@ -13,8 +12,6 @@ export default class Server implements Party.Server {
   url: ${new URL(ctx.request.url).pathname}`
     );
 
-    // let's send a message to the connection
-    conn.send("hello from server");
   }
 
   messages: string[] = [];
@@ -23,10 +20,10 @@ export default class Server implements Party.Server {
     this.messages = (await this.party.storage.get<string[]>("messages")) ?? [];
   }
 
-  async onRequest(_req: PartyRequest) {
+  async onRequest(_req: Party.Request) {
     const messageBody: {requestId: string, body: string} = await _req.json();
 
-    this.party.broadcast(messageBody.body);
+    this.party.broadcast(JSON.stringify(messageBody));
 
     return new Response(
         `Party ${this.party.id} has received ${this.messages.length} messages`

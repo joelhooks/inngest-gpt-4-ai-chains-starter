@@ -14,6 +14,9 @@ export const AI_WRITING_REQUESTED_EVENT = 'ai/writing-requested'
 
 export type AIWritingRequested = {
     name: typeof AI_WRITING_REQUESTED_EVENT
-    data: {}
+    data: {
+        requestId: string
+        input: Record<string, FormDataEntryValue>
+    }
 }
 
